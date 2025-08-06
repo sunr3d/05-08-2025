@@ -19,9 +19,5 @@ func GetConfigFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("envconfig.Process: %w", err)
 	}
 
-	if cfg.AllowedExtensions == nil {
-		cfg.AllowedExtensions = []string{".pdf", ".jpeg"}
-	}
-
 	return cfg, nil
 }
