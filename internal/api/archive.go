@@ -57,11 +57,11 @@ func (h *ArchiveAPI) CreateArchive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := createArchiveResp{
-		ID:         archive.ID,
-		Status:     string(archive.Status),
-		Files:      archive.Files,
-		Errors:     archive.Errors,
-		CreatedAt:  archive.CreatedAt.Format(time.RFC3339),
+		ID:        archive.ID,
+		Status:    string(archive.Status),
+		Files:     archive.Files,
+		Errors:    archive.Errors,
+		CreatedAt: archive.CreatedAt.Format(time.RFC3339),
 	}
 
 	if archive.Status == models.ArchiveStatusReady {

@@ -9,12 +9,12 @@ var (
 
 	ErrMaxFilesPerArchive = errors.New("превышен лимит файлов в архиве")
 
-	ErrArchiveFull = errors.New("архив заполнен")
-	ErrArchiveSave = errors.New("не удалось сохранить архив")
-	ErrArchiveGet  = errors.New("не удалось получить архив")
+	ErrArchiveFull  = errors.New("архив заполнен")
+	ErrArchiveSave  = errors.New("не удалось сохранить архив")
+	ErrArchiveGet   = errors.New("не удалось получить архив")
 	ErrArchiveBuild = errors.New("не удалось создать архив")
 
-	ErrArchiveReady = errors.New("невозможно добавить файл: архив уже собран")
+	ErrArchiveReady  = errors.New("невозможно добавить файл: архив уже собран")
 	ErrArchiveFailed = errors.New("невозможно добавить файл: архив не удалось собрать")
 
 	ErrFileNotFound       = errors.New("файл не найден")
