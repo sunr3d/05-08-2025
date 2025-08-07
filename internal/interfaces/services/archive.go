@@ -12,5 +12,5 @@ type ArchiveService interface {
 
 	CreateEmptyArchive(ctx context.Context) (*models.Archive, error)
 	AddFile(ctx context.Context, archiveID, fileURL string) error
-	GetArchiveStatus(ctx context.Context, archiveID string) (*models.Archive, error)
+	GetArchive(ctx context.Context, archiveID string) (*models.Archive, error)
 }

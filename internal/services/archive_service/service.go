@@ -114,7 +114,7 @@ func (s *archiveService) CreateArchive(ctx context.Context, urls []string) (*mod
 		return nil, fmt.Errorf("%w: %v", ErrArchiveSave, err)
 	}
 
-	s.logger.Info("архив создан",
+	s.logger.Info("архив собран",
 		zap.String("archive_id", archive.ID),
 		zap.Int("total_urls", len(urls)),
 		zap.Int("successful_files", len(archive.Files)),
@@ -170,6 +170,13 @@ func (s *archiveService) AddFile(ctx context.Context, archiveID, fileURL string)
 		return fmt.Errorf("%w: %v", ErrArchiveGet, err)
 	}
 
+	if archive.Status == models.ArchiveStatusReady {
+		return ErrArchiveReady
+	}
+	if archive.Status == models.ArchiveStatusFailed {
+		return ErrArchiveFailed
+	}
+
 	if len(archive.Files) >= s.cfg.MaxFilesPerArchive {
 		return ErrArchiveFull
 	}
@@ -183,10 +190,20 @@ func (s *archiveService) AddFile(ctx context.Context, archiveID, fileURL string)
 		s.logger.Error("не удалось загрузить файл",
 			zap.String("archive_id", archiveID),
 			zap.String("file_url", fileURL),
-			zap.Error(err))
+			zap.Error(err),
+		)
 		return fmt.Errorf("%w: %v", ErrFileDownloadFailed, err)
 	}
 	defer fileReader.Close()
+
+	if err := s.saveFile(ctx, archiveID, filename, fileReader); err != nil {
+		s.logger.Error("не удалось сохранить файл",
+			zap.String("archive_id", archiveID),
+			zap.String("file_url", fileURL),
+			zap.Error(err),
+		)
+		return fmt.Errorf("%w: %v", ErrFileCopyFailed, err)
+	}
 
 	archive.Files = append(archive.Files, filename)
 	archive.UpdatedAt = time.Now()
@@ -200,8 +217,19 @@ func (s *archiveService) AddFile(ctx context.Context, archiveID, fileURL string)
 	)
 
 	if len(archive.Files) == s.cfg.MaxFilesPerArchive {
-		archive.Status = models.ArchiveStatusReady
-		s.logger.Info("архив создан", zap.String("archive_id", archiveID))
+		if err := s.buildZip(ctx, archiveID, archive.Files); err != nil {
+			archive.Status = models.ArchiveStatusFailed
+			archive.Errors = append(archive.Errors, fmt.Sprintf("%s: %s", ErrArchiveBuild.Error(), err.Error()))
+		} else {
+			archive.Status = models.ArchiveStatusReady
+			if err := s.cleanupTemp(ctx, archiveID); err != nil {
+				s.logger.Error("не удалось очистить временные файлы",
+					zap.String("archive_id", archiveID),
+					zap.Error(err),
+				)
+			}
+			s.logger.Info("архив собран", zap.String("archive_id", archiveID))
+		}
 	}
 
 	err = s.repo.SaveArchive(ctx, archive)
@@ -212,7 +240,7 @@ func (s *archiveService) AddFile(ctx context.Context, archiveID, fileURL string)
 	return nil
 }
 
-func (s *archiveService) GetArchiveStatus(ctx context.Context, archiveID string) (*models.Archive, error) {
+func (s *archiveService) GetArchive(ctx context.Context, archiveID string) (*models.Archive, error) {
 	select {
 	case <-ctx.Done():
 		return nil, fmt.Errorf("%w: %v", ErrContextDone, ctx.Err())

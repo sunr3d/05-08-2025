@@ -1,32 +1,36 @@
-package handlers
+package api
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/sunr3d/05-08-2025/internal/config"
 	"github.com/sunr3d/05-08-2025/internal/interfaces/services"
 	"github.com/sunr3d/05-08-2025/models"
 )
 
-type ArchiveHandler struct {
+type ArchiveAPI struct {
 	service services.ArchiveService
 	logger  *zap.Logger
+	cfg     *config.Config
 }
 
-func New(service services.ArchiveService, logger *zap.Logger) *ArchiveHandler {
-	return &ArchiveHandler{
+func New(service services.ArchiveService, logger *zap.Logger, cfg *config.Config) *ArchiveAPI {
+	return &ArchiveAPI{
 		service: service,
 		logger:  logger,
+		cfg:     cfg,
 	}
 }
 
 // POST /archive
-func (h *ArchiveHandler) CreateArchive(w http.ResponseWriter, r *http.Request) {
+func (h *ArchiveAPI) CreateArchive(w http.ResponseWriter, r *http.Request) {
 	var req createArchiveReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("ошибка парсинга JSON запроса", zap.Error(err))
@@ -34,7 +38,7 @@ func (h *ArchiveHandler) CreateArchive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.URLs) < 1 || len(req.URLs) > 3 {
-		http.Error(w, "Некорретный запрос: количество URL должно быть от 1 до 3", http.StatusBadRequest)
+		http.Error(w, "Некорректный запрос: количество URL должно быть от 1 до 3", http.StatusBadRequest)
 		return
 	}
 
@@ -52,7 +56,7 @@ func (h *ArchiveHandler) CreateArchive(w http.ResponseWriter, r *http.Request) {
 		Files:      archive.Files,
 		Errors:     archive.Errors,
 		CreatedAt:  archive.CreatedAt.Format(time.RFC3339),
-		ArchiveURL: fmt.Sprintf("/download/%s.zip", archive.ID),
+		ArchiveURL: fmt.Sprintf("/download?archive_id=%s", archive.ID),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -63,7 +67,7 @@ func (h *ArchiveHandler) CreateArchive(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /archive/empty
-func (h *ArchiveHandler) CreateEmptyArchive(w http.ResponseWriter, r *http.Request) {
+func (h *ArchiveAPI) CreateEmptyArchive(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	archive, err := h.service.CreateEmptyArchive(ctx)
 	if err != nil {
@@ -85,11 +89,11 @@ func (h *ArchiveHandler) CreateEmptyArchive(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-// POST /archive/{archive_id}/file
-func (h *ArchiveHandler) AddFile(w http.ResponseWriter, r *http.Request) {
-	archiveID := h.getArchiveID(r.URL.Path)
+// POST /archive/add-file?archive_id={archive_id}
+func (h *ArchiveAPI) AddFile(w http.ResponseWriter, r *http.Request) {
+	archiveID := r.URL.Query().Get("archive_id")
 	if archiveID == "" {
-		http.Error(w, "Некорректный ID архива в URL", http.StatusBadRequest)
+		http.Error(w, "Некорректный запрос: отсутствует archive_id", http.StatusBadRequest)
 		return
 	}
 
@@ -114,7 +118,7 @@ func (h *ArchiveHandler) AddFile(w http.ResponseWriter, r *http.Request) {
 		resp.Message = err.Error()
 	} else {
 		resp.Success = true
-		resp.Message = fmt.Sprintf("Файл успено добавлен к архиву \"%s\"", archiveID)
+		resp.Message = fmt.Sprintf("Файл успешно добавлен к архиву \"%s\"", archiveID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -124,18 +128,19 @@ func (h *ArchiveHandler) AddFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *ArchiveHandler) GetArchiveStatus(w http.ResponseWriter, r *http.Request) {
-	archiveID := h.getArchiveID(r.URL.Path)
+// GET /archive/status?archive_id={archive_id}
+func (h *ArchiveAPI) GetArchiveStatus(w http.ResponseWriter, r *http.Request) {
+	archiveID := r.URL.Query().Get("archive_id")
 	if archiveID == "" {
-		http.Error(w, "Некорректный ID архива в URL", http.StatusBadRequest)
+		http.Error(w, "Некорректный запрос: отсутствует archive_id", http.StatusBadRequest)
 		return
 	}
 
 	ctx := r.Context()
-	archive, err := h.service.GetArchiveStatus(ctx, archiveID)
+	archive, err := h.service.GetArchive(ctx, archiveID)
 	if err != nil {
 		h.logger.Error("ошибка при попытке получения статуса архива", zap.Error(err))
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "Архив не найден", http.StatusNotFound)
 		return
 	}
 
@@ -149,7 +154,7 @@ func (h *ArchiveHandler) GetArchiveStatus(w http.ResponseWriter, r *http.Request
 	}
 
 	if archive.Status == models.ArchiveStatusReady {
-		resp.ArchiveURL = fmt.Sprintf("/download/%s.zip", archive.ID)
+		resp.ArchiveURL = fmt.Sprintf("/download?archive_id=%s", archive.ID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -159,23 +164,31 @@ func (h *ArchiveHandler) GetArchiveStatus(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// Вспомогательные функции
-func (h *ArchiveHandler) getArchiveID(path string) string {
-	if !strings.HasPrefix(path, "/archive/") {
-		return ""
+// GET /download?archive_id={archive_id}
+func (h *ArchiveAPI) DownloadArchive(w http.ResponseWriter, r *http.Request) {
+	archiveID := r.URL.Query().Get("archive_id")
+	if archiveID == "" {
+		http.Error(w, "Некорректный запрос: отсутствует archive_id", http.StatusBadRequest)
+		return
 	}
 
-	path = strings.TrimPrefix(path, "/archive/")
-
-	if strings.HasSuffix(path, "/file") {
-		id := strings.TrimSuffix(path, "/file")
-		return strings.Trim(id, "/")
+	ctx := r.Context()
+	archive, err := h.service.GetArchive(ctx, archiveID)
+	if err != nil {
+		h.logger.Error("ошибка при попытке получения статуса архива", zap.Error(err))
+		http.Error(w, "Архив не найден", http.StatusNotFound)
+		return
 	}
 
-	if strings.HasSuffix(path, "/status") {
-		id := strings.TrimSuffix(path, "/status")
-		return strings.Trim(id, "/")
+	if archive.Status != models.ArchiveStatusReady {
+		http.Error(w, "Архив недоступен для скачивания", http.StatusBadRequest)
+		return
 	}
 
-	return ""
+	filePath := filepath.Join(h.cfg.ArchivesDir, archiveID+".zip")
+
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", archiveID))
+
+	http.ServeFile(w, r, filePath)
 }

@@ -14,6 +14,9 @@ var (
 	ErrArchiveGet  = errors.New("не удалось получить архив")
 	ErrArchiveBuild = errors.New("не удалось создать архив")
 
+	ErrArchiveReady = errors.New("невозможно добавить файл: архив уже собран")
+	ErrArchiveFailed = errors.New("невозможно добавить файл: архив не удалось собрать")
+
 	ErrFileNotFound       = errors.New("файл не найден")
 	ErrUnsupportedFile    = errors.New("неподдерживаемый файл")
 	ErrFileDownloadFailed = errors.New("не удалось загрузить файл")

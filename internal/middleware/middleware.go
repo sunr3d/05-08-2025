@@ -7,10 +7,10 @@ import (
 	"go.uber.org/zap"
 )
 
-func ReqLoggerMiddleware(log *zap.Logger) func(http.Handler) http.Handler {
+func ReqLogger(log *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Info("Входящий POST запрос",
+			log.Info("Входящий HTTP запрос",
 				zap.String("method", r.Method),
 				zap.String("url", r.URL.Path),
 			)
@@ -19,7 +19,7 @@ func ReqLoggerMiddleware(log *zap.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-func JSONValidatorMiddleware() func(http.Handler) http.Handler {
+func JSONValidator() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPost && r.Header.Get("Content-Type") != "application/json" {
@@ -31,7 +31,7 @@ func JSONValidatorMiddleware() func(http.Handler) http.Handler {
 	}
 }
 
-func RecoveryMiddleware(log *zap.Logger) func(http.Handler) http.Handler {
+func Recovery(log *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {

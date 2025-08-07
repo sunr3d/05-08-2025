@@ -1,4 +1,4 @@
-package handlers
+package api
 
 // CreateArchive
 type createArchiveReq struct {
