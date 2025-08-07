@@ -82,8 +82,8 @@ func (db *inmemDB) CountArchivesInProcess(ctx context.Context) (int, error) {
 	default:
 	}
 
-	db.mu.RLock()
-	defer db.mu.RUnlock()
+	db.mu.Lock()
+	defer db.mu.Unlock()
 
 	count := 0
 	now := time.Now()

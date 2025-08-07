@@ -22,13 +22,22 @@ func ReqLogger(log *zap.Logger) func(http.Handler) http.Handler {
 func JSONValidator() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodPost && r.Header.Get("Content-Type") != "application/json" {
+			if r.Method == http.MethodPost && requiresJSON(r.URL.Path) && r.Header.Get("Content-Type") != "application/json" {
 				http.Error(w, "Неверный Content-Type, ожидается application/json", http.StatusUnsupportedMediaType)
 				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func requiresJSON(path string) bool {
+	endpoints := map[string]bool{
+		"/archive":          true,
+		"/archive/add-file": true,
+	}
+
+	return endpoints[path]
 }
 
 func Recovery(log *zap.Logger) func(http.Handler) http.Handler {

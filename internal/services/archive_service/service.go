@@ -114,12 +114,23 @@ func (s *archiveService) CreateArchive(ctx context.Context, urls []string) (*mod
 		return nil, fmt.Errorf("%w: %v", ErrArchiveSave, err)
 	}
 
-	s.logger.Info("архив собран",
-		zap.String("archive_id", archive.ID),
-		zap.Int("total_urls", len(urls)),
-		zap.Int("successful_files", len(archive.Files)),
-		zap.Int("errors", len(archive.Errors)),
-	)
+	if len(archive.Files) > 0 {
+		s.logger.Info("архив собран",
+			zap.String("archive_id", archive.ID),
+			zap.String("status", string(archive.Status)),
+			zap.Int("total_urls", len(urls)),
+			zap.Int("successful_files", len(archive.Files)),
+			zap.Int("errors", len(archive.Errors)),
+		)
+	} else {
+		s.logger.Info("архив не создан, нет доступных файлов",
+			zap.String("archive_id", archive.ID),
+			zap.String("status", string(archive.Status)),
+			zap.Int("total_urls", len(urls)),
+			zap.Int("successful_files", len(archive.Files)),
+			zap.Int("errors", len(archive.Errors)),
+		)
+	}
 	return archive, nil
 }
 
@@ -260,7 +271,6 @@ func (s *archiveService) GetArchive(ctx context.Context, archiveID string) (*mod
 	return archive, nil
 }
 
-// Вспомогательные методы
 func (s *archiveService) isValidURL(url string) bool {
 	return strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")
 }

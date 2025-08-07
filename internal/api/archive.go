@@ -33,7 +33,10 @@ func New(service services.ArchiveService, logger *zap.Logger, cfg *config.Config
 func (h *ArchiveAPI) CreateArchive(w http.ResponseWriter, r *http.Request) {
 	var req createArchiveReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("ошибка парсинга JSON запроса", zap.Error(err))
+		h.logger.Error("ошибка парсинга JSON запроса",
+			zap.String("error", err.Error()),
+			zap.String("method", "CreateArchive"),
+		)
 		http.Error(w, "Внутренняя ошибка сервера при парсинге JSON запроса", http.StatusInternalServerError)
 		return
 	}
@@ -45,7 +48,10 @@ func (h *ArchiveAPI) CreateArchive(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	archive, err := h.service.CreateArchive(ctx, req.URLs)
 	if err != nil {
-		h.logger.Error("ошибка создания архива", zap.Error(err))
+		h.logger.Error("ошибка создания архива",
+			zap.String("error", err.Error()),
+			zap.String("method", "CreateArchive"),
+		)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -56,12 +62,19 @@ func (h *ArchiveAPI) CreateArchive(w http.ResponseWriter, r *http.Request) {
 		Files:      archive.Files,
 		Errors:     archive.Errors,
 		CreatedAt:  archive.CreatedAt.Format(time.RFC3339),
-		ArchiveURL: fmt.Sprintf("/download?archive_id=%s", archive.ID),
+	}
+
+	if archive.Status == models.ArchiveStatusReady {
+		resp.ArchiveURL = fmt.Sprintf("/download?archive_id=%s", archive.ID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		h.logger.Error("ошибка кодирования JSON ответа", zap.Error(err))
+		h.logger.Error("ошибка кодирования JSON ответа",
+			zap.String("error", err.Error()),
+			zap.String("archive_id", archive.ID),
+			zap.String("method", "CreateArchive"),
+		)
 		http.Error(w, "Внутренняя ошибка сервера при кодировании JSON ответа", http.StatusInternalServerError)
 	}
 }
@@ -71,7 +84,10 @@ func (h *ArchiveAPI) CreateEmptyArchive(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	archive, err := h.service.CreateEmptyArchive(ctx)
 	if err != nil {
-		h.logger.Error("ошибка создания пустого архива", zap.Error(err))
+		h.logger.Error("ошибка создания пустого архива",
+			zap.String("error", err.Error()),
+			zap.String("method", "CreateEmptyArchive"),
+		)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -84,7 +100,11 @@ func (h *ArchiveAPI) CreateEmptyArchive(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		h.logger.Error("ошибка кодирования JSON ответа", zap.Error(err))
+		h.logger.Error("ошибка кодирования JSON ответа",
+			zap.String("error", err.Error()),
+			zap.String("archive_id", archive.ID),
+			zap.String("method", "CreateEmptyArchive"),
+		)
 		http.Error(w, "Внутренняя ошибка сервера при кодировании JSON ответа", http.StatusInternalServerError)
 	}
 }
@@ -99,7 +119,11 @@ func (h *ArchiveAPI) AddFile(w http.ResponseWriter, r *http.Request) {
 
 	var req addFileReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("ошибка парсинга JSON запроса", zap.Error(err))
+		h.logger.Error("ошибка парсинга JSON запроса",
+			zap.String("error", err.Error()),
+			zap.String("archive_id", archiveID),
+			zap.String("method", "AddFile"),
+		)
 		http.Error(w, "Внутренняя ошибка сервера при парсинге JSON запроса", http.StatusInternalServerError)
 		return
 	}
@@ -113,7 +137,11 @@ func (h *ArchiveAPI) AddFile(w http.ResponseWriter, r *http.Request) {
 	resp := addFileResp{}
 	err := h.service.AddFile(ctx, archiveID, req.URL)
 	if err != nil {
-		h.logger.Error("ошибка при добавлении файла в архив", zap.Error(err))
+		h.logger.Error("ошибка при добавлении файла в архив",
+			zap.String("error", err.Error()),
+			zap.String("archive_id", archiveID),
+			zap.String("method", "AddFile"),
+		)
 		resp.Success = false
 		resp.Message = err.Error()
 	} else {
@@ -123,7 +151,11 @@ func (h *ArchiveAPI) AddFile(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		h.logger.Error("ошибка кодирования JSON ответа", zap.Error(err))
+		h.logger.Error("ошибка кодирования JSON ответа",
+			zap.String("error", err.Error()),
+			zap.String("archive_id", archiveID),
+			zap.String("method", "AddFile"),
+		)
 		http.Error(w, "Внутренняя ошибка сервера при кодировании JSON ответа", http.StatusInternalServerError)
 	}
 }
@@ -139,7 +171,11 @@ func (h *ArchiveAPI) GetArchiveStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	archive, err := h.service.GetArchive(ctx, archiveID)
 	if err != nil {
-		h.logger.Error("ошибка при попытке получения статуса архива", zap.Error(err))
+		h.logger.Error("ошибка при попытке получения статуса архива",
+			zap.String("error", err.Error()),
+			zap.String("archive_id", archiveID),
+			zap.String("method", "GetArchiveStatus"),
+		)
 		http.Error(w, "Архив не найден", http.StatusNotFound)
 		return
 	}
@@ -159,7 +195,11 @@ func (h *ArchiveAPI) GetArchiveStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		h.logger.Error("ошибка кодирования JSON ответа", zap.Error(err))
+		h.logger.Error("ошибка кодирования JSON ответа",
+			zap.String("error", err.Error()),
+			zap.String("archive_id", archiveID),
+			zap.String("method", "GetArchiveStatus"),
+		)
 		http.Error(w, "Внутренняя ошибка сервера при кодировании JSON ответа", http.StatusInternalServerError)
 	}
 }
@@ -175,7 +215,11 @@ func (h *ArchiveAPI) DownloadArchive(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	archive, err := h.service.GetArchive(ctx, archiveID)
 	if err != nil {
-		h.logger.Error("ошибка при попытке получения статуса архива", zap.Error(err))
+		h.logger.Error("ошибка при попытке получения статуса архива",
+			zap.String("error", err.Error()),
+			zap.String("archive_id", archiveID),
+			zap.String("method", "DownloadArchive"),
+		)
 		http.Error(w, "Архив не найден", http.StatusNotFound)
 		return
 	}
