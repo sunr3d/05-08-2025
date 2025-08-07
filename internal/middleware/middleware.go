@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"runtime/debug"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -22,9 +23,13 @@ func ReqLogger(log *zap.Logger) func(http.Handler) http.Handler {
 func JSONValidator() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodPost && requiresJSON(r.URL.Path) && r.Header.Get("Content-Type") != "application/json" {
-				http.Error(w, "Неверный Content-Type, ожидается application/json", http.StatusUnsupportedMediaType)
-				return
+			if r.Method == http.MethodPost && requiresJSON(r.URL.Path) {
+				ct := r.Header.Get("Content-Type")
+				base := strings.ToLower(strings.TrimSpace(strings.Split(ct, ";")[0]))
+				if base != "application/json" {
+					http.Error(w, "Неверный Content-Type, ожидается application/json", http.StatusUnsupportedMediaType)
+					return
+				}
 			}
 			next.ServeHTTP(w, r)
 		})

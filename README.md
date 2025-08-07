@@ -144,7 +144,7 @@ curl -L "http://localhost:8080/download?archive_id=YOUR_ID" -o archive.zip
 
 ## Примечания
 
-- Content-Type для POST: строго `application/json`
+- Content-Type для POST: `application/json`
 - Роуты без завершающего `/`: используйте `/archive`, а не `/archive/`
 - При частичных ошибках список проблемных URL в `errors`, архив формируется по доступным
 
