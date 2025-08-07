@@ -5,6 +5,12 @@ REST API сервис для создания ZIP архивов из файло
 ## Быстрый старт
 
 ```bash
+make run
+```
+
+ИЛИ
+
+```bash
 go run cmd/main.go
 ```
 
